@@ -9,7 +9,7 @@ VERSION="$2"
 
 generate_label() {
     # $1: LABEL
-    if ! grep -q "LABEL ${1}" $SYSLINUXCFG; then
+    if ! grep -Eq "LABEL\s+${1}" $SYSLINUXCFG; then
     	echo "Generating syslinux label for $1 ... " &&
 	cat << EOF >> $SYSLINUXCFG
 
