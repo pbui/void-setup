@@ -11,7 +11,7 @@
 
 # Command line arguments
 
-HDD=${1:-/dev/sda}
+HDD=${1:-$(ls /dev/?d? 2> /dev/null | head -n 1)}
 
 # Root Check
 
