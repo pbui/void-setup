@@ -1,0 +1,7 @@
+#
+# Configuration file for SYSLINUX.
+#
+SYSLINUX_PROMPT=1
+SYSLINUX_TIMEOUT=1
+SYSLINUX_DEFAULT=4.9
+SYSLINUX_CMDLINE="ro slub_debug=P page_poison=1 loglevel=4"

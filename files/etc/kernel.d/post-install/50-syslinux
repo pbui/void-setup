@@ -1,0 +1,78 @@
+#!/bin/sh
+#
+# Kernel post-install hook for syslinux
+#
+# Arguments passed to this script: $1 pkgname, $2 version.
+#
+PKGNAME="$1"
+VERSION="$2"
+
+generate_label() {
+    # $1: LABEL
+    if ! grep -q "LABEL ${1}" $SYSLINUXCFG; then
+    	echo "Generating syslinux label for $1 ... " &&
+	cat << EOF >> $SYSLINUXCFG
+
+LABEL	${1}
+	LINUX	/vmlinuz-${V1}.${V2}.${V3}_${V4}
+	INITRD	/initramfs-${V1}.${V2}.${V3}_${V4}.img
+EOF
+    fi
+}
+
+determine_root_uuid() {
+    lsblk --fs --noheadings --output MOUNTPOINT,UUID | grep '^/\s' | awk '{print $2}'
+}
+
+# Make sure we have syslinux directories
+
+if [ ! -d /boot/syslinux -a ! -d /boot/efi/syslinux ]; then
+    exit 0
+fi
+
+# Determine configuration path
+
+if [ -d /boot/syslinux ]; then
+    SYSLINUXCFG="/boot/syslinux/syslinux.cfg"
+elif [ -d /boot/efi/syslinux ]; then
+    SYSLINUXCFG="/boot/efi/syslinux/syslinux.cfg"
+else
+    exit 0
+fi
+
+# Backup configuration
+
+if [ -r $SYSLINUXCFG ]; then
+    echo "Backup up syslinux configuration file $SYSLINUXCFG ... "
+    mv $SYSLINUXCFG $SYSLINUXCFG.old || exit 0
+fi
+
+# Generate header
+
+[ -f /etc/default/syslinux ] && . /etc/default/syslinux
+
+echo "Generating syslinux configuration ... "
+cat << EOF >> $SYSLINUXCFG
+PROMPT	${SYSLINUX_PROMPT:-1}
+TIMEOUT	${SYSLINUX_TIMEOUT:-1}
+DEFAULT	${SYSLINUX_DEFAULT:-$(ls /boot/vmlinuz-4.* | cut -d - -f 2 | sort -rn | head -n 1)}
+APPEND	root=UUID=$(determine_root_uuid) ${SYSLINUX_CMDLINE:-ro loglevel=4}
+EOF
+
+# Generate labels
+
+echo "Generating syslinux labels ... "
+
+for file in $(ls /boot/vmlinuz-[0-9]*.[0-9]*.[0-9]*_[0-9]* | sort -rn)
+do
+	V1=$(echo $file | sed -E 's|/boot/vmlinuz-([0-9]+?)\.[0-9]+?\.[0-9]+?_[0-9]+?|\1|g')
+	V2=$(echo $file | sed -E 's|/boot/vmlinuz-[0-9]+?\.([0-9]+?)\.[0-9]+?_[0-9]+?|\1|g')
+	V3=$(echo $file | sed -E 's|/boot/vmlinuz-[0-9]+?\.[0-9]+?\.([0-9]+?)_[0-9]+?|\1|g')
+	V4=$(echo $file | sed -E 's|/boot/vmlinuz-[0-9]+?\.[0-9]+?\.[0-9]+?_([0-9]+?)|\1|g')
+
+	generate_label ${V1}.${V2}
+	generate_label ${V1}.${V2}.${V3}
+	generate_label ${V1}.${V2}.${V3}_${V4}
+done
+
+exit 1
