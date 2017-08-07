@@ -7,6 +7,10 @@ This is a collection of scripts for configuring [Void Linux]:
 
     Installs `/etc/profile.d` scripts.
 
+- `setup-rc.local.sh`:
+
+    Installs `/etc/rc.local` script.
+
 - `setup-syslinux.sh`:
 
     Installs and configures the [syslinux] bootloader.
