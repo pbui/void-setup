@@ -15,5 +15,10 @@ This is a collection of scripts for configuring [Void Linux]:
 
     Installs and configures the [syslinux] bootloader.
 
+- `setup-xbps.sh`:
+
+    Instals [XBPS] configuration files.
+
 [Void Linux]:   https://www.voidlinux.eu/
 [syslinux]:     http://www.syslinux.org/
+[XBPS]:         https://github.com/voidlinux/xbps
