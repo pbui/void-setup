@@ -20,3 +20,23 @@ fi
 
 printf "Installing /etc/rc.local ... "
 run_check install_file etc/rc.local -oroot -groot -m755 || exit 1
+
+# Append host specific commands
+
+printf "Appending host-specific commands ... "
+case $(hostname) in
+frost|scarlet|nightcrawler)
+    run_check cat >> /etc/rc.local <<EOF
+amixer set PCM 100% > /dev/null
+EOF
+;;
+xavier)
+    run_check cat >> /etc/rc.local <<EOF
+amixer set Master 80   > /dev/null"
+amixer set Speaker off > /dev/null
+EOF
+;;
+*)
+    echo N/A
+;;
+esac
