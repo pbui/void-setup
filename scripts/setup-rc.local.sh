@@ -26,17 +26,20 @@ run_check install_file etc/rc.local -oroot -groot -m755 || exit 1
 printf "Appending host-specific commands ... "
 case $(hostname) in
 frost|scarlet|nightcrawler)
-    run_check cat >> /etc/rc.local <<EOF
+    cat >> /etc/rc.local <<EOF
 amixer set PCM 100% > /dev/null
 EOF
 ;;
 xavier)
-    run_check cat >> /etc/rc.local <<EOF
+    cat >> /etc/rc.local <<EOF
 amixer set Master 80   > /dev/null"
 amixer set Speaker off > /dev/null
 EOF
 ;;
-*)
-    echo N/A
-;;
 esac
+
+if [ $? = 0 ]; then
+    echo "success"
+else
+    echo "failure"
+fi
