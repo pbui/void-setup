@@ -19,7 +19,7 @@ run_check install_file etc/hosts -oroot -groot -m644 || exit 1
 printf "Adjusting host-specific mappings ... "
 case $(hostname) in
 weasel|xavier)
-    sed -i '/192.168/d' /etc/hosts
+    sed -i -e '/192.168/d' -e 's/bx612/cable/' /etc/hosts
 ;;
 esac
 
