@@ -1,0 +1,29 @@
+#
+# /etc/hosts: static lookup table for host names
+#
+
+#<ip-address>		<hostname.domain.org>	<hostname>
+127.0.0.1		localhost.localdomain	localhost
+::1			localhost.localdomain	localhost ip6-localhost
+
+# BX612
+98.220.45.115	bx612
+192.168.1.1	hermes
+192.168.1.11	deadpool
+192.168.1.12	nightcrawler
+192.168.1.13	cable
+192.168.1.14	agentx
+192.168.1.15	wolverine
+192.168.1.16	scarlet
+192.168.1.18	frost
+192.168.1.19	domino
+192.168.1.23	hulk
+
+# VULTR
+107.191.50.102  weasel
+
+# ND
+129.74.160.130	xavier
+129.74.160.187	appa
+
+# End of file
