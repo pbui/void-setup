@@ -13,3 +13,18 @@ do_root_check || exit 1
 
 printf "Installing /etc/hosts ... "
 run_check install_file etc/hosts -oroot -groot -m644 || exit 1
+
+# Adjusting host-specific mappings
+
+printf "Adjusting host-specific mappings ... "
+case $(hostname) in
+weasel|xavier)
+    sed -i '/192.168/d' /etc/hosts
+;;
+esac
+
+if [ $? = 0 ]; then
+    echo "success"
+else
+    echo "failure"
+fi
