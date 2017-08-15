@@ -32,8 +32,9 @@ EOF
 ;;
 xavier)
     cat >> /etc/rc.local <<EOF
-amixer set Master 80   > /dev/null"
+amixer set Master 80   > /dev/null
 amixer set Speaker off > /dev/null
+(sleep 30 ; mount -a) &
 EOF
 ;;
 esac
