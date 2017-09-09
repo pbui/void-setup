@@ -1,0 +1,2 @@
+# Remove wpa_supplicant hook (run as separate service)
+rm -f /usr/libexec/dhcpcd-hooks/10-wpa_supplicant
