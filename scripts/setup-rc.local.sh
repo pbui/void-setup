@@ -12,7 +12,7 @@ do_root_check || exit 1
 # Install syslinux package
 
 if ! command -v figlet > /dev/null 2>&1; then
-    printf "Installing syslinux package ... "
+    printf "Installing figlet package ... "
     run_check xbps-install -Sy figlet || exit 1
 fi
 
