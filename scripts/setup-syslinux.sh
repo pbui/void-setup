@@ -58,7 +58,7 @@ fi
 # Copy data files
 
 printf "Copying syslinux data files to boot directory ... "
-run_check cp $SYSLINUX_DATA_DIR/*.c32 $SYSLINUX_BOOT_DIR || exit 1
+run_check cp $SYSLINUX_DATA_DIR/*.* $SYSLINUX_BOOT_DIR || exit 1
 
 # Install bootloader
 
@@ -68,9 +68,20 @@ if [ $SYSLINUX_TYPE = dos ]; then
 
     printf "Installing bootloader to MBR ... "
     run_check dd bs=440 count=1 if=/usr/share/syslinux/mbr.bin of=$HDD || exit 1
-fi
+else
+    if ! command -v efibootmgr > /dev/null 2>&1; then
+	printf "Installing efibootmgr package ... "
+	run_check xbps-install -Sy efibootmgr || exit 1
+    fi
 
-# TODO: handle EFI
+    if ! efibootmgr | grep -q SYSLINUX > /dev/null; then
+	printf "Adding EFI entry ... "
+	run_check efibootmgr -c \
+	    -d $HDD \
+	    -p $(lsblk -r --fs --noheadings --output MOUNTPOINT,NAME | sed -En 's|/boot\s+[a-z]d[a-z]([0-9]+)$|\1|p') \
+	    -l /efi/syslinux/syslinux.efi -L "SYSLINUX"
+    fi
+fi
 
 # Install kernel hooks
 
