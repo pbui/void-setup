@@ -25,7 +25,7 @@ run_check install_file etc/rc.local -oroot -groot -m755 || exit 1
 
 printf "Appending host-specific commands ... "
 case $(hostname) in
-frost|scarlet|nightcrawler)
+frost|gambit|scarlet|nightcrawler)
     cat >> /etc/rc.local <<EOF
 amixer set PCM 100% > /dev/null
 EOF
