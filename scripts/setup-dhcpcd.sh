@@ -9,7 +9,15 @@
 
 do_root_check || exit 1
 
-# Install /etc/sv/dhcpcd/conf
+# Disable wpa_supplicant hook
 
-printf "Installing /etc/sv/dhcpcd/conf... "
-run_check install_file etc/sv/dhcpcd/conf -oroot -groot -m644 || exit 1
+[ -r /etc/sv/dhcpcd/conf ] && rm /etc/sv/dhcpcd/conf
+
+if ! grep -q 'nohook wpa_supplicant' /etc/dhcpcd.conf; then
+    printf "Disable wpa_supplicant hook ... "
+    cat >> /etc/dhcpcd.conf <<EOF
+
+# Disable wpa_supplicant hook
+nohook wpa_supplicant
+EOF
+fi
