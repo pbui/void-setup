@@ -8,16 +8,16 @@
 
 # BX612
 98.220.45.201	bx612
-192.168.1.1	hermes
-192.168.1.11	deadpool
-192.168.1.12	nightcrawler
-192.168.1.13	cable
-192.168.1.14	agentx
+192.168.1.1	hermes	    
+192.168.1.11	deadpool	# 3c:a9:f4:70:6f:48
+192.168.1.12	nightcrawler	# 00:0f:60:07:9d:39
+192.168.1.13	cable		# c0:25:e9:1d:bf:f8
+192.168.1.14	agentx		
 192.168.1.15	wolverine
-192.168.1.16	scarlet
-192.168.1.17	gambit
-192.168.1.18	frost
-192.168.1.19	domino
+192.168.1.16	scarlet		# 00:0f:60:02:d7:36
+192.168.1.17	gambit		# 00:0f:60:02:e5:6b
+192.168.1.18	frost		# 00:0f:60:05:1c:ba
+192.168.1.19	domino		# b8:ae:ed:72:c9:41
 192.168.1.23	hulk
 
 # VULTR
