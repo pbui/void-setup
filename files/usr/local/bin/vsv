@@ -9,6 +9,7 @@
 VSV_VERSION='v1.0.0'
 
 export SVDIR=${SVDIR:-/var/service}
+export SVCFG=${SVCFG:-/etc/sv}
 
 charup='✔'
 chardown='X'
@@ -377,6 +378,38 @@ do_status() {
 	echo
 }
 
+# handle the disable subcommand
+do_disable() {
+	if (($# < 1)); then
+		rmsg -1 "Argument expected for 'sv disable'"
+		return 1
+	fi
+
+	for svc in "$@"; do
+		cmd="rm -f $SVDIR/$svc"
+		msg "Running $cmd"
+		$cmd
+		local ret=$?
+		rmsg "$ret" "[$cmd $*], exit code: $ret"
+	done
+}
+
+# handle the enable subcommand
+do_enable() {
+	if (($# < 1)); then
+		rmsg -1 "Argument expected for 'sv enable'"
+		return 1
+	fi
+
+	for svc in "$@"; do
+		cmd="ln -sv $SVCFG/$svc $SVDIR"
+		msg "Running $cmd"
+		$cmd
+		local ret=$?
+		rmsg "$ret" "[$cmd $*], exit code: $ret"
+	done
+}
+
 # handle any other subcommand
 do_sv_cmd() {
 	if (($# < 2)); then
@@ -400,7 +433,7 @@ while getopts 'c:d:htuv' option; do
 		d) SVDIR=$OPTARG;;
 		h) do_usage=0;;
 		t) tree=true; cmd='status';;
-		u) SVDIR=~/.service;;
+		u) SVDIR=~/.service; SVCFG=~/.config/service;;
 		v) ((verbosity++));;
                 *) do_usage=1;;
 	esac
@@ -427,6 +460,12 @@ fi
 case "$cmd" in
 	status)
 		do_status "$@"
+		;;
+	disable)
+		do_disable "$@"
+		;;
+	enable)
+		do_enable "$@"
 		;;
 	*)
 		if $tree; then
