@@ -11,7 +11,9 @@ do_root_check || exit 1
 
 # Install scripts
 
-for script in package service; do
+rm -f /usr/local/bin/package /usr/local/bin/service # Delete old scripts
+
+for script in vpm vsv; do
     printf "Installing $script ... "
     run_check install_file usr/local/bin/$script -oroot -groot -m755 || exit 1
 done

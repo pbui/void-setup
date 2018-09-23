@@ -1,0 +1,594 @@
+#!/bin/bash
+# vim: ft=config ts=2 sw=2 sts=2 et
+
+# vpm - void package management utility for
+# XBPS, the X Binary Package System
+# Copyright (c) 2016 Armin Jenewein <a@m2m.pm>, GitHub: @netzverweigerer
+# For more information about XBPS, see:
+# https://github.com/voidlinux/xbps
+
+# Released under the terms of the GNU general public license, version 3+
+# see LICENSE file for license information.
+
+# VPM color definitions
+colorlogo=5
+colorheader=3
+colortext=4
+colorgray=2
+colordarkgray=11
+colorbrackets=6
+
+getversion () {
+  fp="$(readlink -f $0)"
+  cd "${fp%/*}"
+  git describe --all --debug --long --tags 2>/dev/null || echo "UNKNOWN"
+}
+version="$(getversion)"
+
+# set to "true" to enable colorized output, or "auto" to use auto-detection via $TERM
+# it might be recommendable to set this to "false" on server systems
+color=auto
+
+# disable colorization on TTYs
+if [[ "$TERM" == linux || "$TERM" == dumb ]]; then
+  export color=false
+fi
+
+# enable auto colorization
+autocolor () {
+  case "$TERM" in
+    *256*color*)
+    color=true
+    ;;
+  esac
+}
+
+# verbose mode
+verbose=false
+
+color () {
+if [[ ! $color == "false" ]]; then
+  case "$1" in
+    [0-9]*)
+      tput setaf "$1"
+    ;;
+    reset)
+      tput sgr0
+    ;;
+    *)
+      tput "$@"
+    ;;
+  esac
+fi
+}
+
+# prints a message (with vpm-prefix)
+msg () {
+  color $colorbrackets
+  echo -n "["
+  color $colorlogo
+  echo -n "vpm"
+  color $colorbrackets
+  echo -n "] "
+  color $colortext
+  echo "$@"
+  color sgr0
+}
+
+# rmsg - same (but colorized based on return status passed via $1)
+rmsg () {
+  color $colorbrackets
+  echo -n "["
+  color $colorlogo
+  echo -n "vpm"
+  color $colorbrackets
+  echo -n "] "
+  if [[ $1 -gt 0 ]]; then
+    color 1
+  else
+    color 2
+  fi
+  shift
+  echo "$@"
+  color sgr0
+}
+
+banner () {
+  banner_fg=77
+  banner_bg=66
+  color $colorlogo
+  echo  ' __ ___ __ _ __  '
+  echo -n " \ V / '_ \ '  \ "
+  color $colorgray
+  echo '  vpm - void package management utility for XBPS'
+  color $colorlogo
+  echo -n '  \_/| .__/_|_|_|'
+  color $colorgray
+  echo '  GitHub: https://github.com/netzverweigerer/vpm'
+  color $colorlogo
+  echo '     |/          '
+  echo '     ´          '
+  color reset
+}
+
+version () {
+  color $colorlogo
+  banner
+  color sgr0
+  msg "vpm - Version: $version"
+  msg "Copyright (c) 2016 Armin Jenewein <a@m2m.pm> (GPLv3+)"
+  msg "XBPS version: $(xbps-query -v --version | sed 's/GIT: UNSET//')"
+}
+
+# extract versionstring appendix from given package name
+extract_versionstring () {
+  echo "$1" | rev | cut -d"-" -f 1 | rev
+}
+
+# extract versionstring appendix from given package name
+extract_packagename () {
+  echo "$1" | rev | cut -d"-" -f 2- | rev
+}
+
+# check if we have UID 0, exit otherwise
+rootcheck () {
+if [[ "$EUID" -gt 0 ]]; then
+  msg "ERROR: ${0##*/}: This operation needs super-user privileges. Exiting."
+  exit 255
+fi
+}
+
+t () {
+  if [[ "$show_translations" != "" ]]; then
+    tput setaf 242
+    echo "                             $@"
+    echo
+    tput setaf 109
+  fi
+}
+
+usage () {
+  echo
+  version
+  echo
+  color $colorheader
+  echo "USAGE: "
+  color $colorgray
+  echo "vpm [OPTIONS] [SUBCOMMANDS] [<ARGS>]"
+  echo 
+  color $colorheader
+  echo "OPTIONS: "
+  color $colorgray
+  echo "--color=<yes|no|auto>        - Enable/Disable colorized output (default: auto)"
+  echo "--help                       - (same as: help)"
+  echo "--help-pager                 - (same as: helppager)"
+  echo "--show-translations          - Show XBPS command translations for vpm sub-commands"
+  echo "--verbose                    - Verbose mode (shows XBPS command translations during execution)"
+  echo
+  color $colorheader
+  echo "SUBCOMMANDS: "
+  color $colorgray
+  echo "sync                         - Synchronize remote repository data"
+  t "xbps-install -S"
+  echo "update (up)                  - Update the system"
+  t "xbps-install -Sduv"
+  echo "listrepos (lr)               - List configured repositories"
+  echo "repolist (rl)                - Alias for listrepos"
+  t "xbps-query -v -L"
+  echo "addrepo (ar) <ARGS>          - Add an additional repository"
+  t "xbps-install <ARGS>"
+  echo "info <pkg>                   - Show information about <package>"
+  t "xbps-query-v -R"
+  echo "filelist (fl) <pkg>          - Show file-list of <package>"
+  t "xbps-query -v -R -f"
+  echo "deps <pkg>                   - Show dependencies for <package>"
+  t "xbps-query -v -R -x"
+  echo "reverse (rv) <pkg>           - Show reverse dependendies of <package> (see man xbps-query)"
+  t "xbps-query -v -R -X"
+  echo "search (s) <name>            - Search for package by <name>"
+  t "xbps-query -v -Rs"
+  echo "searchfile (sf) <file>       - Search for package containing <file> (local)"
+  t "xbps-query -v -o \"*/$1\""
+  echo "list (ls)                    - List installed packages"
+  t "xbps-query -v -l"
+  echo "install (i) <pkg(s)>         - Install <package(s)>"
+  t "xbps-install -S"
+  echo "devinstall (di) <pkg(s)>     - Install <package> (and corresponding <package>-devel package(s))"
+  t "xbps-install -S <package> <package>-devel"
+  echo "listalternatives (la)        - List alternative candidates"
+  t "xbps-alternatives -l"
+  echo "setalternative (sa) <pkg(s)  - Set alternative for <package>"
+  t "xbps-alternatives -s"
+  echo "reconfigure (rc) <pkg>       - Re-configure installed <package>"
+  t "xbps-reconfigure -v"
+  echo "forceinstall (fi) <pkg(s)>   - Force installation of <package(s)>"
+  t "xbps-install -f"
+  echo "remove <package(s))          - Remove <package(s)> from the system"
+  t "xbps-remove -v "
+  echo "removerecursive <pkg(s)>     - Recursively remove package(s) (and its dependencies)"
+  t "xbps-remove -v -R"
+  echo "cleanup (cl)                 - Clean up cache directory"
+  t "xbps-remove -v -O"
+  echo "autoremove (ar)              - Remove orphaned packages"
+  t "xbps-remove -v -O"
+  echo "whatprovides (wp) <file>     - Search for package containing <file>"
+  t "xlocate <pkg>"
+  echo "help                         - Show usage information"
+  echo "helppager (hp)               - Show usage information (will pipe output to less/more)"
+  echo
+  color $colorheader
+  echo "XBPS COMPATIBILITY COOLNESS:"
+  color $colorgray
+  f=(/usr/sbin/xbps-*)
+  echo "vpm also understands all unknown XBPS sub-commands, too:"
+  echo -n "Example: "
+  selected=${f[$RANDOM % ${#f[@]}]}
+  echo "${0##*/} ${selected##*-} <ARGS> - see also: /usr/sbin/xbps-*"
+  echo 
+  color reset
+}
+
+case "$1" in
+  --color=true|--color=yes|--color=on)
+    color=true
+    shift
+  ;;
+  --color=auto)
+    autocolor
+    shift
+  ;;
+  --color=false|--color=off|--color=no)
+    color=false
+    shift
+  ;;
+  --verbose=true)
+    shift
+    verbose=true
+  ;;
+  --show-translations)
+    shift
+    show_translations=1
+  ;;
+  --help)
+    shift
+    usage
+    exit 255
+  ;;
+  --help-pager)
+    shift
+    $0 --color=off --help | less
+  ;;
+  --*)
+    msg "Unknown option: $1 (try: ${0##*/} --help)"
+    exit 1
+  ;;
+esac
+
+if [[ "$1" == "" ]]; then
+  usage
+  exit 0
+fi
+
+arg="$1"
+
+if [[ "$arg" =~ --.* ]]; then
+  b="${arg:2}"
+  arg="$b"
+fi
+
+case "$arg" in
+  info|in)
+    shift
+    msg "(xbps-query -v -R $@):"
+    xbps-query -v -R "$@"
+    ret=$?
+    rmsg $ret "Execution finished (xbps-query -v -R $@), return code was: $ret"
+    exit $ret
+  ;;
+
+  filelist|fl|listfiles)
+    shift
+    xbps-query -v -R -f "$@"
+    ret=$?; 
+    if [[ $verbose == "true" ]]; then
+      rmsg $ret "Execution finished (xbps-query -v -R -f \"*/$1\"), return code was: $ret"
+    fi
+    exit $ret
+  ;;
+
+  deps|dep|dependencies)
+    shift
+    xbps-query -v -R -x "$@"
+    ret=$?
+    rmsg $ret "Execution finished (xbps-query -v -R -x \"*/$1\"), return code was: $ret"
+    exit $ret
+  ;;
+
+  reverse|rv)
+    shift
+    msg "Reverse dependencies for $@ (xbps-query -v -R $@):"
+    xbps-query -v -R -X "$@"
+    ret=$?
+    msg $ret "Execution finished (xbps-query -v -R $@), return code was: $ret"
+    exit $ret
+  ;;
+
+  searchfile|sf)
+    shift
+    msg "searchfile (xbps-query -v -o \"*/$1\"):"
+    sleep 1
+    xbps-query -v -o "*/$1"
+    ret=$?
+    msg $ret "Execution finished (xbps-query -v -o \"*/$1\"), return code was: $ret"
+    exit $ret
+  ;;
+
+  remotesearchfile|rsf)
+    shift
+    msg "remotesearchfile (xbps-query -R -v -o \"*/$1\"):"
+    sleep 1
+    xbps-query -R -v -o "*/$1"
+    ret=$?
+    msg $ret "Execution finished (xbps-query -R -v -o \"*/$1\"), return code was: $ret"
+    exit $ret
+  ;;
+
+  list|ls)
+    shift
+    msg "Installed packages: "
+    count=0
+    xbps-query -v -l | while read line; do
+    let count=count+1
+    pkg="$(printf ${line#* } | xargs)"
+    pkgname="$(printf '%s\n' "${pkg%-*}")"
+    version="$(printf '%s\n' "${pkg##*-}")"
+    color 8
+    echo -n "$count "
+    color $colortext
+    echo -n "$pkgname "
+    color $colorbrackets
+    echo -n " ("
+    color $colorgray
+    echo -n "$version"
+    color $colorbrackets
+    echo -n ") "
+    color $colorbrackets
+    echo -n " ["
+    color $colordarkgray
+    echo -n "$pkg"
+    color $colorbrackets
+    echo "]"
+    color reset
+    shift
+    done
+  ;;
+
+  listalternative|listalternatives|la)
+    xbps-alternatives -l "$@"
+    ret=$?
+    rmsg $ret "xbps-alternatives return code: $ret (xbps-alternatives -l $@)"
+  ;;
+
+  setalternative|setalternatives|sa)
+    shift
+    rootcheck
+    xbps-alternatives -s "$@"
+    ret=$?
+    rmsg $ret "xbps-alternatives return code: $ret (xbps-alternatives -s $@)"
+  ;;
+
+  repolist|listrepos|rl|lr)
+    msg "Configured repositories (xbps-query -v -L): "
+    xbps-query -v -L
+    ret=$?
+    rmsg $ret "[xbps-query -v -L] return code: $?"
+    shift
+    echo
+    msg "Available sub-repositories (xbps-query -v -Rs void-repo): "
+    xbps-query -v -Rs void-repo
+    ret=$?
+    rmsg $ret "[xbps-query -v -Rs void-repo] return code: $?"
+    shift
+    echo
+    msg "Use \"${0##*/} addrepo <repository>\" to add a sub-repository."
+    echo
+  ;;
+
+  addrepo|ar)
+    shift
+    rootcheck
+    while [ "$#" -gt 0 ]; do
+    msg "Adding repository: $1"
+    xbps-install "$1"
+    ret=$?
+    rmsg $ret "[xbps-install $arg] return code: $?"
+    msg "Synchronizing remote repository data (xbps-install -S): "
+    xbps-install -S
+    ret=$?
+    rmsg $ret"[xbps-install -S] return code: $?"
+    shift
+    done
+    ;;
+
+  sync|sy)
+    shift
+    rootcheck
+    msg "Synchronizing remote repository data: (xbps-install -S):"
+    xbps-install -S
+    ret=$?
+    rmsg $? "[xbps-install -S] return code: $?"
+  ;;
+
+  install|i)
+  shift
+  rootcheck
+  if [ "$#" -lt 1 ]; then
+    msg "ERROR: install: argument missing, try --help."
+    exit 1
+  fi
+  count=0
+  if stat $@ >& /dev/null; then
+    cmd="xdowngrade"
+  else
+    cmd="xbps-install -S"
+  fi
+  msg "Installing packages: $@ ($cmd $@) ..."
+  $cmd "$@"
+  ret="$?"
+  rmsg $ret "[$cmd $@] return code: $ret"
+  ;;
+
+  yesinstall)
+    shift
+    rootcheck
+    if [ "$#" -lt 1 ]; then
+      msg "ERROR: install: argument missing, try --help."
+      exit 1
+    fi
+    count=0
+    msg "Installing packages: $@ (xbps-install -S $@) ..."
+    xbps-install -y -S "$@"
+    ret="$?"
+    rmsg $ret "[xbps-install -S $@] return code: $ret"
+  ;;
+
+  devinstall)
+    shift
+    rootcheck
+    if [ "$#" -lt 1 ]; then
+      msg "ERROR: devinstall: argument missing, try --help."
+      exit 1
+    fi
+    args=($@)
+    msg "devinstall: Packages will be installed one-by-one"
+    msg "Use \"forceinstall\" to override this if you know what you're doing."
+    msg "(Note: forceinstall won't install -devel packages)"
+    for arg in "${args[@]}"; do
+      let count=count+1
+      msg "Installing package: $arg (xbps-install -S $arg) ..."
+      xbps-install -S "$arg"
+      ret="$?"
+      rmsg $ret "[xbps-install -S $arg] return code: $ret"
+      msg "installing devel package (${arg}-devel):"
+      xbps-install -S "${arg}-devel"
+      ret="$?"
+      rmsg $ret "[xbps-install -S ${arg}-devel] return code: $ret"
+    done
+  ;;
+
+  forceinstall|fi)
+    shift
+    rootcheck
+    msg "Force-Installing Package(s): $@ (xbps-install -Sf $@)"
+    xbps-install -Sf "$@"
+    ret="$?"
+    rmsg $ret "[xbps-install -Sf ${@}] return code: $ret"
+  ;;
+
+  remove|rm)
+    shift
+    rootcheck
+    msg "Removing package(s): $@ (xbps-remove -v $@)"
+    xbps-remove -v "$@"
+    ret="$?"
+    rmsg $ret "[xbps-remove -v ${@}] return code: $ret"
+  ;;
+
+  removerecursive|rr)
+    shift
+    rootcheck
+    msg "Removing package(s) recursively: $@ (xbps-remove -v -R $@)"
+    xbps-remove -v -R "$@"
+    ret="$?"
+    rmsg $ret "[xbps-remove -v -R ${@}] return code: $ret"
+  ;;
+
+  reconfigure|rc)
+    shift
+    rootcheck
+    msg "reconfigure: Re-configuring package(s) (xbps-reconfigure -v $@):"
+    xbps-reconfigure -v "$@"
+    ret="$?"
+    rmsg $ret "[xbps-reconfigure -v ${@}] return code: $ret"
+  ;; 
+
+  autoremove|ar)
+    shift
+    rootcheck
+    msg "autoremove: Removing orphaned packages (xbps-remove -v -Q)"
+    xbps-remove -v -O
+    ret="$?"
+    rmsg $ret "[xbps-remove -v -O] return code: $ret"
+  ;;
+
+  update|upgrade|up)
+    shift
+    rootcheck
+    msg "Running system update (xbps-install -Suv)"
+    xbps-install -Suv
+    ret=$?
+    rmsg $ret "[xbps-install -Suv] return code: $ret"
+  ;;
+
+  search|s)
+    shift
+    msg "Searching for: $@ (xbps-query -v -Rs $@)"
+    xbps-query -v -Rs "$@"
+    ret=$?
+    rmsg $ret "[xbps-query -v -Rs $@] return code: $?"
+  ;;
+
+  cleanup|clean|cl)
+    msg "Cleaning up packages (will remove orphaned packages) (xbps-remove -v -O $@)"
+    shift
+    rootcheck
+    xbps-remove -v -O "$@"
+    ret=$?
+    rmsg $ret "[xbps-remove -v --D $@] return code: $?"
+  ;;
+
+  h|help|-h|--help)
+    usage
+  ;;
+
+  helppager|help-pager|hp)
+    if hash less >/dev/null 2>&1; then
+      $0 --color=off help | less
+    else
+      $0 --color=off help | more
+    fi
+  ;;
+
+  whatprovides|wp)
+    shift
+    if hash xlocate >/dev/null 2>&1; then
+      # set -x
+      # xlocate -S "$@"
+      msg "relaying to: \"xlocate $@\" - use xlocate -S to (re-)build cached DB."
+      xlocate "$@"
+    else
+      rmsg 255 "xlocate not found. Try installing the xtools package."
+    fi
+  ;;
+
+  ''|*)
+    a="$1"
+    if hash "xbps-${a}" >/dev/null 2>&1; then
+      shift
+      # xbps-<subcommand> found
+      msg "relaying to XBPS: xbps-${a} $@"
+      xbps-${a} $@
+      ret=$?
+      rmsg "xbps-${a} $@ return code: $ret"
+    else
+      rmsg 255 "Unrecognized vpm subcommand: $1 (and xbps-$1 does not exist) - Try: ${0##*/} help"
+      echo
+      exit 1
+    fi
+  ;;
+
+esac
+
+exit 0
+
+
