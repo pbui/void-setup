@@ -427,7 +427,7 @@ case "$arg" in
     rmsg "$ret" "[xbps-install -S] return code: $ret"
   ;;
 
-  install|i)
+  add|install|i)
     shift
     rootcheck
     if [[ "$#" -lt 1 ]]; then
@@ -491,7 +491,7 @@ case "$arg" in
     rmsg "$ret" "[xbps-install -Sf ${@}] return code: $ret"
   ;;
 
-  remove|rm)
+  remove|rm|uninstall)
     shift
     rootcheck
     msg "Removing package(s): $@ (xbps-remove -v $@)"
