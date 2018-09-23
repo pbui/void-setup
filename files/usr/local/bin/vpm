@@ -524,10 +524,10 @@ case "$arg" in
   update|upgrade|up)
     shift
     rootcheck
-    msg "Running system update (xbps-install -Suv)"
-    xbps-install -Suv
+    msg "Running system update (xbps-install -Su)"
+    xbps-install -Su
     ret=$?
-    rmsg $ret "[xbps-install -Suv] return code: $ret"
+    rmsg $ret "[xbps-install -Su] return code: $ret"
   ;;
 
   search|s)
