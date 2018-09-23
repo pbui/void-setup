@@ -1,5 +1,5 @@
 #!/bin/bash
-# vim: ft=config ts=2 sw=2 sts=2 et
+# vim: ft=sh ts=2 sw=2 sts=2 et
 
 # vpm - void package management utility for
 # XBPS, the X Binary Package System
@@ -11,137 +11,154 @@
 # see LICENSE file for license information.
 
 # VPM color definitions
-colorlogo=5
-colorheader=3
-colortext=4
-colorgray=2
-colordarkgray=11
-colorbrackets=6
+numcolorok=2
+numcolorfail=1
+numcolorlogo=5
+numcolorheader=3
+numcolortext=4
+numcolorgray=2
+numcolorpkgcount=8
+numcolordarkgray=11
+numcolorbrackets=6
 
 getversion () {
-  fp="$(readlink -f $0)"
-  cd "${fp%/*}"
-  git describe --all --debug --long --tags 2>/dev/null || echo "UNKNOWN"
-}
-version="$(getversion)"
-
-# set to "true" to enable colorized output, or "auto" to use auto-detection via $TERM
-# it might be recommendable to set this to "false" on server systems
-color=auto
-
-# disable colorization on TTYs
-if [[ "$TERM" == linux || "$TERM" == dumb ]]; then
-  export color=false
-fi
-
-# enable auto colorization
-autocolor () {
-  case "$TERM" in
-    *256*color*)
-    color=true
-    ;;
-  esac
+  local fp=$(readlink -f "$0")
+  (cd "${fp%/*}" && \
+    git describe --all --debug --long --tags 2>/dev/null) || echo "UNKNOWN"
 }
 
-# verbose mode
+version=$(getversion)
+progname=${0##*/}
 verbose=false
 
-color () {
-if [[ ! $color == "false" ]]; then
-  case "$1" in
-    [0-9]*)
-      tput setaf "$1"
+# enable or disable colors based on the argument given, i.e.:
+# setcolors on   # colors on
+# setcolors off  # colors off
+# setcolors auto # colors on or off depending on environment
+declare -A COLORS
+setcolors () {
+  local opt=$1
+
+  # determine if colors should be enabled or not
+  if [[ $opt == auto ]]; then
+    # if stdout is a TTY and the TERM looks like it supports color enable colors
+    if [[ -t 1 && $TERM == *color* ]]; then
+      opt='on'
+    else
+      opt='off'
+    fi
+  fi
+
+  case "$opt" in
+    on)
+      local i
+      for i in {1..11}; do
+        if [[ -n ${COLORS[$i]} ]]; then
+          continue
+        fi
+        COLORS[$i]=$(tput setaf "$i")
+      done
+      colorbrackets=${COLORS[$numcolorbrackets]}
+      colordarkgray=${COLORS[$numcolordarkgray]}
+      colorfail=${COLORS[$numcolorfail]}
+      colorgray=${COLORS[$numcolorgray]}
+      colorheader=${COLORS[$numcolorheader]}
+      colorlogo=${COLORS[$numcolorlogo]}
+      colorok=${COLORS[$numcolorok]}
+      colorpkgcount=${COLORS[$numcolorpkgcount]}
+      colortext=${COLORS[$numcolortext]}
+      colorreset=$(tput sgr0)
     ;;
-    reset)
-      tput sgr0
+    off)
+      colorbrackets=
+      colordarkgray=
+      colorfail=
+      colorgray=
+      colorheader=
+      colorlogo=
+      colorok=
+      colorpkgcount=
+      colortext=
+      colorreset=
+      unset COLORS
+      declare -A COLORS
     ;;
     *)
-      tput "$@"
+      rmsg 255 "unknown color option: '$opt'"
+      exit 255
     ;;
   esac
-fi
+}
+
+# print the logo with brackets colorized
+getlogo () {
+  printf '%s[%s%s%s]%s' \
+    "$colorbrackets" \
+    "$colorlogo" "$progname" \
+    "$colorbrackets" \
+    "$colorreset"
 }
 
 # prints a message (with vpm-prefix)
 msg () {
-  color $colorbrackets
-  echo -n "["
-  color $colorlogo
-  echo -n "vpm"
-  color $colorbrackets
-  echo -n "] "
-  color $colortext
-  echo "$@"
-  color sgr0
+  local logo=$(getlogo)
+
+  echo "$logo" "$colortext" "$@" "$colorreset"
 }
 
 # rmsg - same (but colorized based on return status passed via $1)
 rmsg () {
-  color $colorbrackets
-  echo -n "["
-  color $colorlogo
-  echo -n "vpm"
-  color $colorbrackets
-  echo -n "] "
-  if [[ $1 -gt 0 ]]; then
-    color 1
-  else
-    color 2
-  fi
+  local code=$1
   shift
-  echo "$@"
-  color sgr0
+
+  local logo=$(getlogo)
+  local statuscolor
+
+  if ((code == 0)); then
+    statuscolor=$colorok
+  else
+    statuscolor=$colorfail
+  fi
+
+  echo "$logo" "$statuscolor" "$@" "$colorreset"
 }
 
 banner () {
-  banner_fg=77
-  banner_bg=66
-  color $colorlogo
-  echo  ' __ ___ __ _ __  '
-  echo -n " \ V / '_ \ '  \ "
-  color $colorgray
-  echo '  vpm - void package management utility for XBPS'
-  color $colorlogo
+  echo -n "$colorlogo"
+  echo ' __ ___ __ _ __  '
+
+  printf " \\ V / '_ \\ '  \ "
+  echo -n "$colorgray"
+  echo "  $progname - void package management utility for XBPS"
+  echo -n "$colorlogo"
   echo -n '  \_/| .__/_|_|_|'
-  color $colorgray
+  echo -n "$colorgray"
   echo '  GitHub: https://github.com/netzverweigerer/vpm'
-  color $colorlogo
+  echo -n "$colorlogo"
   echo '     |/          '
   echo '     ´          '
-  color reset
+  echo -n "$colorreset"
 }
 
 version () {
-  color $colorlogo
   banner
-  color sgr0
-  msg "vpm - Version: $version"
+  msg "$progname - Version: $version"
   msg "Copyright (c) 2016 Armin Jenewein <a@m2m.pm> (GPLv3+)"
   msg "XBPS version: $(xbps-query -v --version | sed 's/GIT: UNSET//')"
 }
 
-# extract versionstring appendix from given package name
-extract_versionstring () {
-  echo "$1" | rev | cut -d"-" -f 1 | rev
-}
-
-# extract versionstring appendix from given package name
-extract_packagename () {
-  echo "$1" | rev | cut -d"-" -f 2- | rev
-}
-
 # check if we have UID 0, exit otherwise
 rootcheck () {
-if [[ "$EUID" -gt 0 ]]; then
-  msg "ERROR: ${0##*/}: This operation needs super-user privileges. Exiting."
-  exit 255
-fi
+  if [[ $EUID -gt 0 ]]; then
+    msg "ERROR: $progname: This operation needs super-user privileges. Exiting."
+    exit 255
+  fi
 }
 
 t () {
-  if [[ "$show_translations" != "" ]]; then
+  if [[ -n $show_translations ]]; then
     tput setaf 242
-    echo "                             $@"
+    echo '                             ' "$@"
     echo
     tput setaf 109
   fi
@@ -151,23 +168,23 @@ usage () {
   echo
   version
   echo
-  color $colorheader
+  echo -n "$colorheader"
   echo "USAGE: "
-  color $colorgray
-  echo "vpm [OPTIONS] [SUBCOMMANDS] [<ARGS>]"
-  echo 
-  color $colorheader
+  echo -n "$colorgray"
+  echo "$progname [OPTIONS] [SUBCOMMANDS] [<ARGS>]"
+  echo
+  echo -n "$colorheader"
   echo "OPTIONS: "
-  color $colorgray
+  echo -n "$colorgray"
   echo "--color=<yes|no|auto>        - Enable/Disable colorized output (default: auto)"
   echo "--help                       - (same as: help)"
   echo "--help-pager                 - (same as: helppager)"
-  echo "--show-translations          - Show XBPS command translations for vpm sub-commands"
+  echo "--show-translations          - Show XBPS command translations for $progname sub-commands"
   echo "--verbose                    - Verbose mode (shows XBPS command translations during execution)"
   echo
-  color $colorheader
+  echo -n "$colorheader"
   echo "SUBCOMMANDS: "
-  color $colorgray
+  echo -n "$colorgray"
   echo "sync                         - Synchronize remote repository data"
   t "xbps-install -S"
   echo "update (up)                  - Update the system"
@@ -216,29 +233,30 @@ usage () {
   echo "help                         - Show usage information"
   echo "helppager (hp)               - Show usage information (will pipe output to less/more)"
   echo
-  color $colorheader
+  echo -n "$colorheader"
   echo "XBPS COMPATIBILITY COOLNESS:"
-  color $colorgray
+  echo -n "$colorgray"
   f=(/usr/sbin/xbps-*)
-  echo "vpm also understands all unknown XBPS sub-commands, too:"
+  echo "$progname also understands all unknown XBPS sub-commands, too:"
   echo -n "Example: "
   selected=${f[$RANDOM % ${#f[@]}]}
-  echo "${0##*/} ${selected##*-} <ARGS> - see also: /usr/sbin/xbps-*"
-  echo 
-  color reset
+  echo "$progname ${selected##*-} <ARGS> - see also: /usr/sbin/xbps-*"
+  echo
+  echo -n "$colorreset"
 }
 
+setcolors auto
 case "$1" in
   --color=true|--color=yes|--color=on)
-    color=true
+    setcolors on
     shift
   ;;
   --color=auto)
-    autocolor
+    setcolors auto
     shift
   ;;
   --color=false|--color=off|--color=no)
-    color=false
+    setcolors off
     shift
   ;;
   --verbose=true)
@@ -256,10 +274,10 @@ case "$1" in
   ;;
   --help-pager)
     shift
-    $0 --color=off --help | less
+    "$0" --color=off --help | less
   ;;
   --*)
-    msg "Unknown option: $1 (try: ${0##*/} --help)"
+    msg "Unknown option: $1 (try: $progname --help)"
     exit 1
   ;;
 esac
@@ -269,11 +287,11 @@ if [[ "$1" == "" ]]; then
   exit 0
 fi
 
-arg="$1"
+arg=$1
 
 if [[ "$arg" =~ --.* ]]; then
-  b="${arg:2}"
-  arg="$b"
+  b=${arg:2}
+  arg=$b
 fi
 
 case "$arg" in
@@ -282,26 +300,26 @@ case "$arg" in
     msg "(xbps-query -v -R $@):"
     xbps-query -v -R "$@"
     ret=$?
-    rmsg $ret "Execution finished (xbps-query -v -R $@), return code was: $ret"
-    exit $ret
+    rmsg "$ret" "Execution finished (xbps-query -v -R $@), return code was: $ret"
+    exit "$ret"
   ;;
 
   filelist|fl|listfiles)
     shift
     xbps-query -v -R -f "$@"
-    ret=$?; 
+    ret=$?;
     if [[ $verbose == "true" ]]; then
-      rmsg $ret "Execution finished (xbps-query -v -R -f \"*/$1\"), return code was: $ret"
+      rmsg "$ret" "Execution finished (xbps-query -v -R -f \"*/$1\"), return code was: $ret"
     fi
-    exit $ret
+    exit "$ret"
   ;;
 
   deps|dep|dependencies)
     shift
     xbps-query -v -R -x "$@"
     ret=$?
-    rmsg $ret "Execution finished (xbps-query -v -R -x \"*/$1\"), return code was: $ret"
-    exit $ret
+    rmsg "$ret" "Execution finished (xbps-query -v -R -x \"*/$1\"), return code was: $ret"
+    exit "$ret"
   ;;
 
   reverse|rv)
@@ -309,64 +327,54 @@ case "$arg" in
     msg "Reverse dependencies for $@ (xbps-query -v -R $@):"
     xbps-query -v -R -X "$@"
     ret=$?
-    msg $ret "Execution finished (xbps-query -v -R $@), return code was: $ret"
-    exit $ret
+    msg "$ret" "Execution finished (xbps-query -v -R $@), return code was: $ret"
+    exit "$ret"
   ;;
 
   searchfile|sf)
     shift
     msg "searchfile (xbps-query -v -o \"*/$1\"):"
-    sleep 1
     xbps-query -v -o "*/$1"
     ret=$?
-    msg $ret "Execution finished (xbps-query -v -o \"*/$1\"), return code was: $ret"
+    msg "$ret" "Execution finished (xbps-query -v -o \"*/$1\"), return code was: $ret"
     exit $ret
   ;;
 
   remotesearchfile|rsf)
     shift
     msg "remotesearchfile (xbps-query -R -v -o \"*/$1\"):"
-    sleep 1
     xbps-query -R -v -o "*/$1"
     ret=$?
-    msg $ret "Execution finished (xbps-query -R -v -o \"*/$1\"), return code was: $ret"
-    exit $ret
+    msg "$ret" "Execution finished (xbps-query -R -v -o \"*/$1\"), return code was: $ret"
+    exit "$ret"
   ;;
 
   list|ls)
     shift
     msg "Installed packages: "
+
     count=0
-    xbps-query -v -l | while read line; do
-    let count=count+1
-    pkg="$(printf ${line#* } | xargs)"
-    pkgname="$(printf '%s\n' "${pkg%-*}")"
-    version="$(printf '%s\n' "${pkg##*-}")"
-    color 8
-    echo -n "$count "
-    color $colortext
-    echo -n "$pkgname "
-    color $colorbrackets
-    echo -n " ("
-    color $colorgray
-    echo -n "$version"
-    color $colorbrackets
-    echo -n ") "
-    color $colorbrackets
-    echo -n " ["
-    color $colordarkgray
-    echo -n "$pkg"
-    color $colorbrackets
-    echo "]"
-    color reset
-    shift
-    done
+    while read -r _ pkg _; do
+      ((count++))
+      pkgname=${pkg%-*}
+      version=${pkg##*-}
+
+      printf '%s%d %s%s %s (%s%s%s) [%s%s%s]%s\n' \
+        "$colorpkgcount" "$count" \
+        "$colortext" "$pkgname" \
+        "$colorbrackets" \
+        "$colorgray" "$version" \
+        "$colorbrackets" \
+        "$colordarkgray" "$pkg" \
+        "$colorbrackets" \
+        "$colorreset"
+    done < <(xbps-query -v -l)
   ;;
 
   listalternative|listalternatives|la)
     xbps-alternatives -l "$@"
     ret=$?
-    rmsg $ret "xbps-alternatives return code: $ret (xbps-alternatives -l $@)"
+    rmsg "$ret" "xbps-alternatives return code: $ret (xbps-alternatives -l $@)"
   ;;
 
   setalternative|setalternatives|sa)
@@ -374,39 +382,39 @@ case "$arg" in
     rootcheck
     xbps-alternatives -s "$@"
     ret=$?
-    rmsg $ret "xbps-alternatives return code: $ret (xbps-alternatives -s $@)"
+    rmsg "$ret" "xbps-alternatives return code: $ret (xbps-alternatives -s $@)"
   ;;
 
   repolist|listrepos|rl|lr)
     msg "Configured repositories (xbps-query -v -L): "
     xbps-query -v -L
     ret=$?
-    rmsg $ret "[xbps-query -v -L] return code: $?"
+    rmsg "$ret" "[xbps-query -v -L] return code: $ret"
     shift
     echo
     msg "Available sub-repositories (xbps-query -v -Rs void-repo): "
     xbps-query -v -Rs void-repo
     ret=$?
-    rmsg $ret "[xbps-query -v -Rs void-repo] return code: $?"
+    rmsg "$ret" "[xbps-query -v -Rs void-repo] return code: $ret"
     shift
     echo
-    msg "Use \"${0##*/} addrepo <repository>\" to add a sub-repository."
+    msg "Use \"$progname addrepo <repository>\" to add a sub-repository."
     echo
   ;;
 
   addrepo|ar)
     shift
     rootcheck
-    while [ "$#" -gt 0 ]; do
-    msg "Adding repository: $1"
-    xbps-install "$1"
-    ret=$?
-    rmsg $ret "[xbps-install $arg] return code: $?"
-    msg "Synchronizing remote repository data (xbps-install -S): "
-    xbps-install -S
-    ret=$?
-    rmsg $ret"[xbps-install -S] return code: $?"
-    shift
+    for repo in "$@"; do
+      msg "Adding repository: $repo"
+      xbps-install "$1"
+      ret=$?
+      rmsg "$ret" "[xbps-install $arg] return code: $ret"
+      msg "Synchronizing remote repository data (xbps-install -S): "
+      xbps-install -S
+      ret=$?
+      rmsg "$ret" "[xbps-install -S] return code: $ret"
+      shift
     done
     ;;
 
@@ -416,50 +424,48 @@ case "$arg" in
     msg "Synchronizing remote repository data: (xbps-install -S):"
     xbps-install -S
     ret=$?
-    rmsg $? "[xbps-install -S] return code: $?"
+    rmsg "$ret" "[xbps-install -S] return code: $ret"
   ;;
 
   install|i)
-  shift
-  rootcheck
-  if [ "$#" -lt 1 ]; then
-    msg "ERROR: install: argument missing, try --help."
-    exit 1
-  fi
-  count=0
-  if stat $@ >& /dev/null; then
-    cmd="xdowngrade"
-  else
-    cmd="xbps-install -S"
-  fi
-  msg "Installing packages: $@ ($cmd $@) ..."
-  $cmd "$@"
-  ret="$?"
-  rmsg $ret "[$cmd $@] return code: $ret"
+    shift
+    rootcheck
+    if [[ "$#" -lt 1 ]]; then
+      msg "ERROR: install: argument missing, try --help."
+      exit 1
+    fi
+    if stat "$@" >& /dev/null; then
+      cmd="xdowngrade"
+    else
+      cmd="xbps-install -S"
+    fi
+    msg "Installing packages: $@ ($cmd $@) ..."
+    $cmd "$@"
+    ret=$?
+    rmsg "$ret" "[$cmd $@] return code: $ret"
   ;;
 
   yesinstall)
     shift
     rootcheck
-    if [ "$#" -lt 1 ]; then
+    if [[ "$#" -lt 1 ]]; then
       msg "ERROR: install: argument missing, try --help."
       exit 1
     fi
-    count=0
     msg "Installing packages: $@ (xbps-install -S $@) ..."
     xbps-install -y -S "$@"
-    ret="$?"
-    rmsg $ret "[xbps-install -S $@] return code: $ret"
+    ret=$?
+    rmsg "$ret" "[xbps-install -S $@] return code: $ret"
   ;;
 
   devinstall)
     shift
     rootcheck
-    if [ "$#" -lt 1 ]; then
+    if [[ "$#" -lt 1 ]]; then
       msg "ERROR: devinstall: argument missing, try --help."
       exit 1
     fi
-    args=($@)
+    args=("$@")
     msg "devinstall: Packages will be installed one-by-one"
     msg "Use \"forceinstall\" to override this if you know what you're doing."
     msg "(Note: forceinstall won't install -devel packages)"
@@ -467,12 +473,12 @@ case "$arg" in
       let count=count+1
       msg "Installing package: $arg (xbps-install -S $arg) ..."
       xbps-install -S "$arg"
-      ret="$?"
-      rmsg $ret "[xbps-install -S $arg] return code: $ret"
+      ret=$?
+      rmsg "$ret" "[xbps-install -S $arg] return code: $ret"
       msg "installing devel package (${arg}-devel):"
       xbps-install -S "${arg}-devel"
-      ret="$?"
-      rmsg $ret "[xbps-install -S ${arg}-devel] return code: $ret"
+      ret=$?
+      rmsg "$ret" "[xbps-install -S ${arg}-devel] return code: $ret"
     done
   ;;
 
@@ -481,8 +487,8 @@ case "$arg" in
     rootcheck
     msg "Force-Installing Package(s): $@ (xbps-install -Sf $@)"
     xbps-install -Sf "$@"
-    ret="$?"
-    rmsg $ret "[xbps-install -Sf ${@}] return code: $ret"
+    ret=$?
+    rmsg "$ret" "[xbps-install -Sf ${@}] return code: $ret"
   ;;
 
   remove|rm)
@@ -490,8 +496,8 @@ case "$arg" in
     rootcheck
     msg "Removing package(s): $@ (xbps-remove -v $@)"
     xbps-remove -v "$@"
-    ret="$?"
-    rmsg $ret "[xbps-remove -v ${@}] return code: $ret"
+    ret=$?
+    rmsg "$ret" "[xbps-remove -v ${@}] return code: $ret"
   ;;
 
   removerecursive|rr)
@@ -499,8 +505,8 @@ case "$arg" in
     rootcheck
     msg "Removing package(s) recursively: $@ (xbps-remove -v -R $@)"
     xbps-remove -v -R "$@"
-    ret="$?"
-    rmsg $ret "[xbps-remove -v -R ${@}] return code: $ret"
+    ret=$?
+    rmsg "$ret" "[xbps-remove -v -R ${@}] return code: $ret"
   ;;
 
   reconfigure|rc)
@@ -508,17 +514,17 @@ case "$arg" in
     rootcheck
     msg "reconfigure: Re-configuring package(s) (xbps-reconfigure -v $@):"
     xbps-reconfigure -v "$@"
-    ret="$?"
-    rmsg $ret "[xbps-reconfigure -v ${@}] return code: $ret"
-  ;; 
+    ret=$?
+    rmsg "$ret" "[xbps-reconfigure -v ${@}] return code: $ret"
+  ;;
 
   autoremove|ar)
     shift
     rootcheck
     msg "autoremove: Removing orphaned packages (xbps-remove -v -Q)"
     xbps-remove -v -O
-    ret="$?"
-    rmsg $ret "[xbps-remove -v -O] return code: $ret"
+    ret=$?
+    rmsg "$ret" "[xbps-remove -v -O] return code: $ret"
   ;;
 
   update|upgrade|up)
@@ -527,7 +533,7 @@ case "$arg" in
     msg "Running system update (xbps-install -Su)"
     xbps-install -Su
     ret=$?
-    rmsg $ret "[xbps-install -Su] return code: $ret"
+    rmsg "$ret" "[xbps-install -Su] return code: $ret"
   ;;
 
   search|s)
@@ -535,7 +541,7 @@ case "$arg" in
     msg "Searching for: $@ (xbps-query -v -Rs $@)"
     xbps-query -v -Rs "$@"
     ret=$?
-    rmsg $ret "[xbps-query -v -Rs $@] return code: $?"
+    rmsg "$ret" "[xbps-query -v -Rs $@] return code: $ret"
   ;;
 
   cleanup|clean|cl)
@@ -544,7 +550,7 @@ case "$arg" in
     rootcheck
     xbps-remove -v -O "$@"
     ret=$?
-    rmsg $ret "[xbps-remove -v --D $@] return code: $?"
+    rmsg "$ret" "[xbps-remove -v -O $@] return code: $ret"
   ;;
 
   h|help|-h|--help)
@@ -553,9 +559,9 @@ case "$arg" in
 
   helppager|help-pager|hp)
     if hash less >/dev/null 2>&1; then
-      $0 --color=off help | less
+      "$0" --color=off help | less
     else
-      $0 --color=off help | more
+      "$0" --color=off help | more
     fi
   ;;
 
@@ -576,12 +582,12 @@ case "$arg" in
     if hash "xbps-${a}" >/dev/null 2>&1; then
       shift
       # xbps-<subcommand> found
-      msg "relaying to XBPS: xbps-${a} $@"
-      xbps-${a} $@
+      msg "relaying to XBPS: xbps-$a $@"
+      "xbps-$a" "$@"
       ret=$?
-      rmsg "xbps-${a} $@ return code: $ret"
+      rmsg "$ret" "xbps-$a $@ return code: $ret"
     else
-      rmsg 255 "Unrecognized vpm subcommand: $1 (and xbps-$1 does not exist) - Try: ${0##*/} help"
+      rmsg 255 "Unrecognized $progname subcommand: $1 (and xbps-$1 does not exist) - Try: $progname help"
       echo
       exit 1
     fi
@@ -590,5 +596,3 @@ case "$arg" in
 esac
 
 exit 0
-
-
