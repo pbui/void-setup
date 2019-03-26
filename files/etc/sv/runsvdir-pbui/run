@@ -1,0 +1,2 @@
+#!/bin/sh
+exec sudo -H -u pbui runsvdir -P /home/pbui/.service 'log:.............................................................................'
