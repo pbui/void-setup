@@ -31,12 +31,12 @@ case $(blkid -s PTTYPE -o value $HDD) in
 gpt)
     SYSLINUX_TYPE=gpt
     SYSLINUX_BOOT_DIR=/boot/efi/syslinux
-    SYSLINUX_DATA_DIR=/usr/share/syslinux/efi64
+    SYSLINUX_DATA_DIR=/usr/lib/syslinux/efi64
     ;;
 dos)
     SYSLINUX_TYPE=dos
     SYSLINUX_BOOT_DIR=/boot/syslinux
-    SYSLINUX_DATA_DIR=/usr/share/syslinux
+    SYSLINUX_DATA_DIR=/usr/lib/syslinux
     ;;
 *)
     printf "unknown\n"
@@ -67,7 +67,7 @@ if [ $SYSLINUX_TYPE = dos ]; then
     run_check extlinux --install $SYSLINUX_BOOT_DIR || exit 1
 
     printf "Installing bootloader to MBR ... "
-    run_check dd bs=440 count=1 if=/usr/share/syslinux/mbr.bin of=$HDD || exit 1
+    run_check dd bs=440 count=1 if=/usr/lib/syslinux/mbr.bin of=$HDD || exit 1
 else
     if ! command -v efibootmgr > /dev/null 2>&1; then
 	printf "Installing efibootmgr package ... "
