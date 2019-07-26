@@ -19,7 +19,7 @@ run_check install_file etc/sysctl.conf -oroot -groot -m644 || exit 1
 printf "Adjusting host-specific settings ... "
 case $(hostname) in
 weasel)
-    sed -i -Ee 's/vm.swappiness=(.*)/vm.swappiness=60/' /etc/sysctl.conf
+    sed -i -Ee 's/vm.swappiness=(.*)/vm.swappiness=40/' /etc/sysctl.conf
 ;;
 esac
 
