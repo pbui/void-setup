@@ -1,10 +1,6 @@
 polkit.addRule(function(action, subject) {
   var YES = polkit.Result.YES;
   var permission = {
-    "org.freedesktop.consolekit.system.restart": YES,
-    "org.freedesktop.consolekit.system.stop": YES,
-    "org.freedesktop.consolekit.system.suspend": YES,
-    "org.freedesktop.consolekit.system.hibernate": YES,
     "org.freedesktop.upower.hibernate": YES,
     "org.freedesktop.upower.suspend": YES
   };
