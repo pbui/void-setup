@@ -12,7 +12,7 @@ do_root_check || exit 1
 
 for rules in files/etc/udev/rules.d/*.rules; do
     printf "Installing $rules... "
-    run_check install_file etc/udev/rules.d/$(basename $rules) -oroot -groot -m644|| exit 1
+    run_check install_file etc/udev/rules.d/$(basename $rules) -oroot -groot -m644 -D|| exit 1
 done
 
 # Reload rules
