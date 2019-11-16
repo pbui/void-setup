@@ -63,7 +63,7 @@ EOF
 
 echo "Generating syslinux labels ... "
 
-for file in $(ls /boot/vmlinuz-[0-9]*.[0-9]*.[0-9]*_[0-9]* | sort -rn)
+for file in $(ls /boot/vmlinuz-[0-9]*.[0-9]*.[0-9]*_[0-9]* | sort -rV)
 do
 	V1=$(echo $file | sed -E 's|/boot/vmlinuz-([0-9]+?)\.[0-9]+?\.[0-9]+?_[0-9]+?|\1|g')
 	V2=$(echo $file | sed -E 's|/boot/vmlinuz-[0-9]+?\.([0-9]+?)\.[0-9]+?_[0-9]+?|\1|g')
