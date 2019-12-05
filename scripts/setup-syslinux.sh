@@ -78,7 +78,7 @@ else
 	printf "Adding EFI entry ... "
 	run_check efibootmgr -c \
 	    -d $HDD \
-	    -p $(lsblk -r --fs --noheadings --output MOUNTPOINT,NAME | sed -En 's|/boot\s+[a-z]d[a-z]([0-9]+)$|\1|p') \
+	    -p $(lsblk -r --fs --noheadings --output MOUNTPOINT,NAME | sed -En 's|/boot\s+[a-z0-9]+(.)$|\1|p') \
 	    -l /efi/syslinux/syslinux.efi -L "SYSLINUX"
     fi
 fi
