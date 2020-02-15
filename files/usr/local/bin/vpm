@@ -532,6 +532,10 @@ case "$arg" in
     rootcheck
     msg "Running system update (xbps-install -Su)"
     xbps-install -Su
+    if [ $? -eq 16 ]; then
+      xbps-install -u xbps
+      xbps-install -Su
+    fi
     ret=$?
     rmsg "$ret" "[xbps-install -Su] return code: $ret"
   ;;
