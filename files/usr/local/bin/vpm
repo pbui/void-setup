@@ -521,10 +521,10 @@ case "$arg" in
   autoremove|ar)
     shift
     rootcheck
-    msg "autoremove: Removing orphaned packages (xbps-remove -v -Q)"
-    xbps-remove -v -O
+    msg "autoremove: Removing orphaned packages (xbps-remove -v -o)"
+    xbps-remove -v -o
     ret=$?
-    rmsg "$ret" "[xbps-remove -v -O] return code: $ret"
+    rmsg "$ret" "[xbps-remove -v -o] return code: $ret"
   ;;
 
   update|upgrade|up)
