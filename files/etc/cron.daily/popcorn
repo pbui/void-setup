@@ -1,0 +1,6 @@
+#!/bin/sh
+
+: ${SERVER:=popcorn.voidlinux.org}
+: ${PORT:=8001}
+
+chpst -u _popcorn:_popcorn popcorn --server $SERVER --port $PORT
