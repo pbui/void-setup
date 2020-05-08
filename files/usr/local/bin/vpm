@@ -534,9 +534,8 @@ case "$arg" in
     if [[ $ret == 16 ]]; then
       msg "Updating xbps (xbps-install -u xbps)"
       xbps-install -u xbps
-      ret2=$?
-      rmsg "$ret2" "[xbps-install -u xbps] return code: $ret2"
-      exit 0 
+      xbps-install -Suv
+      ret=$?
     fi
     rmsg "$ret" "[xbps-install -Suv] return code: $ret"
   ;;
