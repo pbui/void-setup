@@ -10,6 +10,12 @@
 # Released under the terms of the GNU general public license, version 3+
 # see LICENSE file for license information.
 
+# set version number
+version="1.3"
+
+# disable verbosity, by default
+verbose=false
+
 # VPM color definitions
 numcolorok=2
 numcolorfail=1
@@ -21,15 +27,7 @@ numcolorpkgcount=8
 numcolordarkgray=11
 numcolorbrackets=6
 
-getversion () {
-  local fp=$(readlink -f "$0")
-  (cd "${fp%/*}" && \
-    git describe --all --debug --long --tags 2>/dev/null) || echo "UNKNOWN"
-}
-
-version=$(getversion)
 progname=${0##*/}
-verbose=false
 
 # enable or disable colors based on the argument given, i.e.:
 # setcolors on   # colors on
@@ -530,14 +528,17 @@ case "$arg" in
   update|upgrade|up)
     shift
     rootcheck
-    msg "Running system update (xbps-install -Su)"
-    xbps-install -Su
-    if [ $? -eq 16 ]; then
-      xbps-install -u xbps
-      xbps-install -Su
-    fi
+    msg "Running system update (xbps-install -Suv)"
+    xbps-install -Suv
     ret=$?
-    rmsg "$ret" "[xbps-install -Su] return code: $ret"
+    if [[ $ret == 16 ]]; then
+      msg "Updating xbps (xbps-install -u xbps)"
+      xbps-install -u xbps
+      ret2=$?
+      rmsg "$ret2" "[xbps-install -u xbps] return code: $ret2"
+      exit 0 
+    fi
+    rmsg "$ret" "[xbps-install -Suv] return code: $ret"
   ;;
 
   search|s)
