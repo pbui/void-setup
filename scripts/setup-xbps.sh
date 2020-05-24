@@ -19,3 +19,10 @@ for conf in $(ls $_BASEDIR/files/etc/xbps.d); do
     printf "Installing $conf ... "
     run_check install_file $conf -oroot -groot -m644 || exit 1
 done
+
+# Remove unnecessary packages
+
+for package in $(awk -F = '/ignorepkg/ { print $2 }' $_BASEDIR/files/etc/xbps.d/*.conf); do
+    printf "Removing $package..."
+    run_check xbps-remove -R $package
+done
