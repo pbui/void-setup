@@ -24,5 +24,5 @@ done
 
 for package in $(awk -F = '/ignorepkg/ { print $2 }' $_BASEDIR/files/etc/xbps.d/*.conf); do
     printf "Removing $package..."
-    run_check xbps-remove -R $package
+    run_check xbps-remove -R -y $package
 done
