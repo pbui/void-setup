@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Configuration
+
+WIREGUARD_DEVICE=wg0
+WIREGUARD_SERVER=192.168.2.1
+WIRELESS_DEVICE=wlan0
+
+HOME_SSID=bx612
+CABLE_ADDRESS=192.168.1.13
+XAVIER_ADDRESS=129.74.153.20
+
+# Functions
+
+check_wireguard() {
+    ip address show dev $WIREGUARD_DEVICE &> /dev/null && \
+    	ping -q -c 1 -W 1 $WIREGUARD_SERVER &> /dev/null
+}
+
+get_wireless_ssid() {
+    iw dev $WIRELESS_DEVICE info | awk '/ssid/ { print $2 }'
+}
+
+# Main Execution
+
+SSID=$(get_wireless_ssid)
+if [ "$SSID" != "$HOME_SSID" ]; then
+    CABLE_ADDRESS=98.220.45.201	    # Set cable to public IP
+fi
+
+if check_wireguard && ! ping -q -c 1 -W 1 $XAVIER_ADDRESS &> /dev/null; then
+    XAVIER_ADDRESS=192.168.2.2	    # Set xavier to wireguard IP
+fi
+
+echo "cable is now $CABLE_ADDRESS"
+echo "xavier is now $XAVIER_ADDRESS"
+
+sed -E \
+    -e "s|^([0-9\.]+)(\s+)cable(.*)$|$CABLE_ADDRESS\2cable\3|" \
+    -e "s|^([0-9\.]+)(\s+)xavier(.*)$|$XAVIER_ADDRESS\2xavier\3|" \
+    -i /etc/hosts
