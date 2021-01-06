@@ -16,13 +16,13 @@ if ! command -v socklog > /dev/null 2>&1; then
     run_check xbps-install -Sy socklog socklog-void || exit 1
 fi
 
-# Enable services
+# Link services
 
-printf "Enable socklog-unix service ... "
-run_check service enable socklog-unix || exit 1
+printf "Link socklog-unix service ... "
+run_check service link socklog-unix || exit 1
 
-printf "Enable nanoklogd service ... "
-run_check service enable nanoklogd || exit 1
+printf "Link nanoklogd service ... "
+run_check service link nanoklogd || exit 1
 
 # Link logs
 
