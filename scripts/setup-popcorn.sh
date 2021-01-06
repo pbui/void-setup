@@ -12,7 +12,7 @@ do_root_check || exit 1
 # Install PopCorn package
 
 if ! command -v popcorn > /dev/null 2>&1; then
-    printf "Installing cronie package ... "
+    printf "Installing PopCorn package ... "
     run_check xbps-install -Sy PopCorn || exit 1
 fi
 
